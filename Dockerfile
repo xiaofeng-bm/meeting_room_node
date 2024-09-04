@@ -1,5 +1,5 @@
 # 使用 Node.js 18.0 版本的 Alpine Linux 作为构建阶段的基础镜像
-FROM node:18.12.1 as build-stage
+FROM node as build-stage
 
 # 设置工作目录为 /app
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # 使用 Node.js 18.0 版本的 Alpine Linux 作为生产阶段的基础镜像
-FROM node:18.12.1 as production-stage
+FROM node as production-stage
 
 # 从构建阶段复制构建输出的文件到生产阶段的工作目录
 COPY --from=build-stage /app/dist /app
