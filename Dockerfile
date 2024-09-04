@@ -1,5 +1,5 @@
 # 使用 Node.js 18.0 版本的 Alpine Linux 作为构建阶段的基础镜像
-FROM node:18.0-alpine3.14 as build-stage
+FROM node:18.12.1 as build-stage
 
 # 设置工作目录为 /app
 WORKDIR /app
