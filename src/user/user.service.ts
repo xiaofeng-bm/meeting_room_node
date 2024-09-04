@@ -71,8 +71,8 @@ export class UserService {
     await this.redisService.set(`captcha_${email}`, code, 60 * 5)
 
     await this.emailService.sendMail({
-      to: 'baimin_job@163.com',
-      subject: '验证码',
+      to: email, // 收件人邮箱
+      subject: '验证码', // 邮箱主题
       html: `<p>您正在注册，验证码为${code}，5分钟内有效</p>`
     })
     return '发送成功'

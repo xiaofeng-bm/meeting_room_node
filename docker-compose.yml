@@ -1,0 +1,35 @@
+version: '3.8' # 指定 Docker Compose 文件的版本
+
+services:
+  nest-app:
+    build:
+      context: ./ # 指定构建上下文为当前目录
+      dockerfile: ./Dockerfile # 指定 Dockerfile 的路径
+    depends_on:
+      - mysql-container # nest-app 服务依赖于 mysql-container 服务
+      - redis-container # nest-app 服务依赖于 redis-container 服务
+    ports:
+      - 3005:3005 # 将主机的端口 3005 映射到容器的端口 3005
+    networks:
+      - common-network # 将 nest-app 服务连接到 common-network 网络
+
+  mysql-container:
+    image: mysql # 使用官方的 MySQL 镜像
+    volumes:
+      - /Users/baimin/mysql:/var/lib/mysql # 将主机的 /Users/baimin/mysql 目录挂载到容器的 /var/lib/mysql 目录
+    environment:
+      MYSQL_DATABASE: meeting_room_node # 设置 MySQL 数据库名称
+      MYSQL_ROOT_PASSWORD: 123456 # 设置 MySQL root 用户的密码
+    networks:
+      - common-network # 将 mysql-container 服务连接到 common-network 网络
+
+  redis-container:
+    image: redis # 使用官方的 Redis 镜像
+    volumes:
+      - /Users/baimin/redis:/data # 将主机的 /Users/baimin/redis 目录挂载到容器的 /data 目录
+    networks:
+      - common-network # 将 redis-container 服务连接到 common-network 网络
+
+networks:
+  common-network:
+    driver: bridge # 使用 bridge 网络驱动程序
