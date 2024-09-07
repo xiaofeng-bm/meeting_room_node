@@ -6,15 +6,32 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { md5 } from 'src/utils/index'
 import { EmailService } from 'src/email/email.service';
+import { Role } from './entities/role.entity';
+import { Permission } from './entities/permission.entity';
+import { LoginUserDto } from './dto/login-user.dto';
+import { LoginUserVo } from './vo/login-user.vo';
 
 
 @Injectable()
 export class UserService {
   private logger = new Logger();
 
-  // 注入数据库对象
+
+  /**
+   * 注入User实体
+   */
   @InjectRepository(User)
   private userRepository: Repository<User>;
+  /**
+   * 注入role实体
+   */
+  @InjectRepository(Role)
+  private roleRepository: Repository<Role>;
+  /**
+   * 注入permission实体
+   */
+  @InjectRepository(Permission)
+  private permissionRepository: Repository<Permission>;
 
   // 注入redis
   @Inject(RedisService)
@@ -23,6 +40,53 @@ export class UserService {
   // 注入邮件服务
   @Inject(EmailService)
   private emailService: EmailService;
+
+  /**
+   * 初始化
+   */
+  async init() {
+    const adminUser = new User();
+    adminUser.username = 'admin';
+    adminUser.password = md5('123456');
+    adminUser.email = 'baimin_job@163.com';
+    adminUser.nickName = 'admin';
+    adminUser.isAdmin = true;
+    adminUser.phoneNumber = '17695974184';
+
+
+    const zhangsan = new User();
+    zhangsan.username = '张三';
+    zhangsan.password = md5('123456');
+    zhangsan.email = 'xiaofengbm@gmail.com';
+    zhangsan.nickName = '张三';
+
+    const adminRole = new Role();
+    adminRole.name = '超级管理员';
+
+    const role = new Role();
+    role.name = '普通用户';
+
+    const adminPermission = new Permission();
+    adminPermission.code = 1;
+    adminPermission.description = '超级管理员权限';
+
+    const permission = new Permission();
+    permission.code = 2;
+    permission.description = '普通用户权限';
+
+    // 用户-角色
+    adminUser.roles = [adminRole];
+    zhangsan.roles = [role];
+
+    // 角色-权限
+    adminRole.permissions = [adminPermission];
+    role.permissions = [permission];
+
+
+    await this.permissionRepository.save([adminPermission, permission]);
+    await this.roleRepository.save([adminRole, role]);
+    await this.userRepository.save([adminUser, zhangsan]);
+  }
 
   /**
    * 注册
@@ -76,5 +140,65 @@ export class UserService {
       html: `<p>您正在注册，验证码为${code}，5分钟内有效</p>`
     })
     return '发送成功'
+  }
+
+  /**
+   * 登录
+   * @param loginUser LoginUserDto
+   */
+  async login(loginUser: LoginUserDto, isAdmin: boolean) {
+    // findOne({ where: id: null })会返回第一条数据，要么判空在用，要么用下面方法替代。
+    // const user = await this.userRepository.createQueryBuilder().where({ username: loginUser.username }).relations(['roles']).getOne();
+    const user = loginUser.username ? await this.userRepository.findOne({
+      where: {
+        username: loginUser.username
+      },
+      relations: ['roles', 'roles.permissions']
+    }) : null;
+
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.BAD_REQUEST);
+    }
+
+    if (user.password !== md5(loginUser.password)) {
+      throw new HttpException('密码错误', HttpStatus.BAD_REQUEST);
+    }
+
+
+    const vo = new LoginUserVo();
+    vo.userInfo = {
+      id: user.id,
+      username: user.username,
+      password: user.password,
+      nickName: user.nickName,
+      email: user.email,
+      headPic: user.headPic,
+      phoneNumber: user.phoneNumber,
+      isFrozen: user.isFrozen,
+      isAdmin: user.isAdmin,
+      createTime: user.createTime.getTime(),
+      roles: user.roles.map(role => role.name),
+      permissions: user.roles.reduce((arr, item) => {
+        item.permissions.forEach(permission => {
+          if(arr.indexOf(permission) === -1) {
+            arr.push(permission);
+          }
+        })
+        return arr;
+      }, [])
+    }
+    return vo;
+  }
+  /**
+   * id => user
+   * @param id number
+   */
+  async findUserById(id: number) {
+    const user = id ? await this.userRepository.findOne({
+      where: {
+        id
+      }
+    }) : null;
+    return user;
   }
 }

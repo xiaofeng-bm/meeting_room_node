@@ -8,10 +8,10 @@ export class Permission {
   id: number;
 
   @Column({
-    length: 20,
+    type: 'int',
     comment: '权限代码'
   })
-  code: string;
+  code: number;
 
   @Column({
     length: 100,
