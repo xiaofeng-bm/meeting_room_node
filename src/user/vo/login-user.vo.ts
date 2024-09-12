@@ -1,4 +1,4 @@
-interface UserInfo {
+export interface UserInfo {
   id: number;
   username: string;
   password: string;
@@ -12,6 +12,8 @@ interface UserInfo {
   roles: string[];
   permissions: string[];
 }
+
+export type TokenUsers =  Pick<UserInfo, 'id' | 'username' | 'roles' | 'permissions'>
 
 export class LoginUserVo {
   userInfo: UserInfo;

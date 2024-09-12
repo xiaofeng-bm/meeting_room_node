@@ -10,6 +10,7 @@ import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { LoginUserDto } from './dto/login-user.dto';
 import { LoginUserVo } from './vo/login-user.vo';
+import { UpdateUserPasswordDto } from './dto/update-password.dto';
 
 
 @Injectable()
@@ -180,7 +181,7 @@ export class UserService {
       roles: user.roles.map(role => role.name),
       permissions: user.roles.reduce((arr, item) => {
         item.permissions.forEach(permission => {
-          if(arr.indexOf(permission) === -1) {
+          if (arr.indexOf(permission) === -1) {
             arr.push(permission);
           }
         })
@@ -197,8 +198,61 @@ export class UserService {
     const user = id ? await this.userRepository.findOne({
       where: {
         id
+      },
+      relations: ['roles', 'roles.permissions']
+    }) : null;
+
+    return {
+      id: user.id,
+      username: user.username,
+      isAdmin: user.isAdmin,
+      email: user.email,
+      roles: user.roles.map(item => item.name),
+      permissions: user.roles.reduce((arr, item) => {
+        item.permissions.forEach(permission => {
+          if (arr.indexOf(permission) === -1) {
+            arr.push(permission);
+          }
+        })
+        return arr;
+      }, [])
+    }
+  }
+
+  async findUserDetailById(id: number) {
+    const user = id ? await this.userRepository.findOne({
+      where: {
+        id
       }
     }) : null;
+
     return user;
+  }
+
+  async updatePassword( passwordDto: UpdateUserPasswordDto) {
+    const captcha = await this.redisService.get(`update_password_captcha_${passwordDto.email}`);
+    
+    if(!captcha) {
+      throw new HttpException('验证码已过期', HttpStatus.BAD_REQUEST);
+    }
+
+    if(passwordDto.captcha !== captcha) {
+      throw new HttpException('验证码错误', HttpStatus.BAD_REQUEST);
+    }
+
+
+    const foundUser = await this.userRepository.findOneBy({
+      email: passwordDto.email
+    });
+
+    foundUser.password = md5(passwordDto.password);
+
+    try {
+      await this.userRepository.save(foundUser);
+      return '修改密码成功';
+    } catch (error) {
+      this.logger.error(error, UserService)
+      return '密码修改失败，请重试'
+    }
   }
 }
